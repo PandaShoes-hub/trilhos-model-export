@@ -6,7 +6,7 @@ import fs from "fs/promises";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "https://extensions.shopifycdn.com",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, authorization",
 };
 
 export async function loader({ request }: LoaderFunctionArgs) {
