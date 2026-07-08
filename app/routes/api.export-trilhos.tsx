@@ -1,22 +1,36 @@
-import type { ActionFunctionArgs } from "react-router";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import ExcelJS from "exceljs";
 import path from "path";
 import fs from "fs/promises";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": "https://extensions.shopifycdn.com",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-export async function options() {
-  return new Response(null, {
-    status: 204,
+export async function loader({ request }: LoaderFunctionArgs) {
+  if (request.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders,
+    });
+  }
+
+  return new Response("Method not allowed", {
+    status: 405,
     headers: corsHeaders,
   });
 }
 
 export async function action({ request }: ActionFunctionArgs) {
+  if (request.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders,
+    });
+  }
+
   const data = await request.json();
 
   const templatePath = path.join(process.cwd(), "public", "ATT_IMPORT.xlsx");
@@ -62,6 +76,7 @@ export async function action({ request }: ActionFunctionArgs) {
       downloadUrl: `https://trilhos-model-export.onrender.com/exports/${filename}`,
     }),
     {
+      status: 200,
       headers: {
         "Content-Type": "application/json",
         ...corsHeaders,
