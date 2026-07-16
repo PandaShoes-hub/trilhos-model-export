@@ -1,8 +1,8 @@
 api_version = "2025-10"
 
 [[extensions]]
-name = "Exportar para Trilhos"
-handle = "trilhos-model-export"
+name = "SellForge Shipping"
+handle = "SellForge-Shipping"
 
 uid = "6a704e93-7d38-9ff5-107e-dad4d1026187cf274f60"
 type = "ui_extension"

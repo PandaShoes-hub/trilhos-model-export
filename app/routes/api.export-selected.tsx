@@ -2,9 +2,20 @@ import type { ActionFunctionArgs } from "react-router";
 import ExcelJS from "exceljs";
 import path from "path";
 import { authenticate } from "../shopify.server";
+import { isShopLicensed } from "../utils/license.server";
 
 export async function action({ request }: ActionFunctionArgs) {
-  const { admin } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
+
+  if (!isShopLicensed(session.shop)) {
+    return new Response(
+      JSON.stringify({ error: "A licença desta loja está inativa." }),
+      {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
   const { orderIds } = await request.json();
 
   const response = await admin.graphql(
@@ -95,7 +106,7 @@ export async function action({ request }: ActionFunctionArgs) {
       "Content-Type":
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition":
-        'attachment; filename="ATT_IMPORT_TRILHOS.xlsx"',
+        'attachment; filename="SELLFORGE_SHIPPING.xlsx"',
     },
   });
 }

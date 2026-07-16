@@ -3,6 +3,7 @@ import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+import { isShopLicensed } from "../utils/license.server";
 
 type Order = {
   id: string;
@@ -12,10 +13,16 @@ type Order = {
   total: string;
   totalNumber: number;
   createdAt: string;
+  country: string;
 };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
+  const licensed = isShopLicensed(session.shop);
+
+  if (!licensed) {
+    return { licensed: false, shop: session.shop, orders: [] as Order[] };
+  }
 
   const response = await admin.graphql(`
     #graphql
@@ -38,9 +45,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 currencyCode
               }
             }
-            shippingAddress {
-              name
-            }
+shippingAddress {
+  name
+  countryCodeV2
+}
           }
         }
       }
@@ -58,6 +66,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       id: order.id,
       name: order.name,
       customerName: order.shippingAddress?.name || "Sem nome",
+	  country: order.shippingAddress?.countryCodeV2 || "",
       note: order.note || "",
       totalNumber: amount,
       total: `${amount.toFixed(2)} ${currency}`,
@@ -65,11 +74,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     };
   });
 
-  return { orders };
+  return { licensed: true, shop: session.shop, orders };
 };
 
 export default function Index() {
-  const { orders } = useLoaderData<typeof loader>();
+  const { licensed, shop, orders } = useLoaderData<typeof loader>();
 
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [search, setSearch] = useState("");
@@ -151,7 +160,7 @@ export default function Index() {
 
       const downloadLink = document.createElement("a");
       downloadLink.href = url;
-      downloadLink.download = "ATT_IMPORT_TRILHOS.xlsx";
+      downloadLink.download = "SELLFORGE_SHIPPING.xlsx";
 
       document.body.appendChild(downloadLink);
       downloadLink.click();
@@ -171,8 +180,40 @@ export default function Index() {
     }
   }
 
+  if (!licensed) {
+    return (
+      <s-page heading="SellForge Shipping">
+        <s-section>
+          <div
+            style={{
+              maxWidth: "680px",
+              margin: "40px auto",
+              padding: "32px",
+              background: "white",
+              border: "1px solid #dfe3e8",
+              borderRadius: "16px",
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontSize: "42px", marginBottom: "12px" }}>🔒</div>
+            <h2 style={{ margin: 0, fontSize: "24px" }}>Licença inativa</h2>
+            <p style={{ margin: "12px 0 0", color: "#666" }}>
+              Esta loja não tem autorização para utilizar a SellForge Shipping.
+            </p>
+            <p style={{ margin: "8px 0 0", color: "#666" }}>
+              Loja: <strong>{shop}</strong>
+            </p>
+            <p style={{ margin: "18px 0 0", color: "#444" }}>
+              Contacte a SellForge para ativar ou renovar o acesso.
+            </p>
+          </div>
+        </s-section>
+      </s-page>
+    );
+  }
+
   return (
-    <s-page heading="Exportar para Trilhos">
+    <s-page heading="SellForge Shipping">
       <s-section>
         <div style={{ display: "grid", gap: "18px" }}>
           <div
@@ -186,11 +227,11 @@ export default function Index() {
           >
             <div>
               <h2 style={{ margin: 0, fontSize: "24px" }}>
-                📦 Exportar Encomendas
+                🚚 SellForge Shipping
               </h2>
 
               <p style={{ margin: "6px 0 0", color: "#666" }}>
-                {orders.length} encomenda(s) não processada(s)
+                Exportação para Trilhos Dinâmicos
               </p>
             </div>
 
@@ -235,7 +276,7 @@ export default function Index() {
               }}
             >
               <div style={{ color: "#666", fontSize: "13px" }}>
-                Encomendas
+                📦 Encomendas
               </div>
 
               <strong style={{ fontSize: "22px" }}>{orders.length}</strong>
@@ -250,7 +291,7 @@ export default function Index() {
               }}
             >
               <div style={{ color: "#666", fontSize: "13px" }}>
-                Selecionadas
+                ☑ Selecionadas
               </div>
 
               <strong style={{ fontSize: "22px" }}>
@@ -267,7 +308,7 @@ export default function Index() {
               }}
             >
               <div style={{ color: "#666", fontSize: "13px" }}>
-                Total selecionado
+                💰 Valor
               </div>
 
               <strong style={{ fontSize: "22px" }}>
@@ -367,25 +408,40 @@ export default function Index() {
                   <strong>{order.name}</strong>
 
                   <div>
-                    <div>{order.customerName}</div>
+  <div>{order.customerName}</div>
 
-                    {order.note && (
-                      <div
-                        style={{
-                          marginTop: "5px",
-                          display: "inline-block",
-                          background: "#fff4d6",
-                          color: "#8a6116",
-                          padding: "3px 8px",
-                          borderRadius: "999px",
-                          fontSize: "12px",
-                          fontWeight: 600,
-                        }}
-                      >
-                        📝 {order.note}
-                      </div>
-                    )}
-                  </div>
+  {order.note && (
+    <div
+      style={{
+        marginTop: "5px",
+        display: "inline-block",
+        background: "#fff4d6",
+        color: "#8a6116",
+        padding: "3px 8px",
+        borderRadius: "999px",
+        fontSize: "12px",
+        fontWeight: 600,
+      }}
+    >
+      📝 {order.note}
+    </div>
+  )}
+
+  <div
+    style={{
+      marginTop: "6px",
+      fontSize: "12px",
+      color: "#666",
+      fontWeight: 600,
+    }}
+  >
+    {order.country === "ES"
+      ? "🇪🇸 Espanha"
+      : order.country === "PT"
+        ? "🇵🇹 Portugal"
+        : order.country || "País não definido"}
+  </div>
+</div>
 
                   <span>{order.createdAt}</span>
 
